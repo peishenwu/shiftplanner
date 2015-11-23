@@ -3,7 +3,17 @@ set.seed(1234)
 library(utils)
 
 ##
-OncallPlanner <- function(index=1, iter_max=20000){
+##worker functions
+mininterval <- function(x){
+  result = Inf
+  if (length(x) >1){
+    #result = min(sapply(2:length(x),function(i){x[i]-x[i-1]}))
+    result = min(x[2:length(x)] - x[1:length(x)-1]) #vectorized version
+  }
+  result
+}#end function
+##
+OncallPlanner <- function(index=1, iter_max=30000){
   data <- readRDS("swapper_output.rds")
   #
   pb <- txtProgressBar(min = 1, max = iter_max, style=3)
@@ -57,12 +67,20 @@ OncallPlanner <- function(index=1, iter_max=20000){
       workspace[choose.oncall,dayindex] <- 1
     }#end for
     ##
-    oncall.results <- c(oncall.results, list(workspace))
+    #check for any errors such as QDs
+    min.int <- sapply(1:nrow(workspace[oncall.persons,]), 
+                      function(x){
+                        mininterval(c(1:ncol(workspace[oncall.persons,]))[c(workspace[oncall.persons,][x,]==1)])
+                      })
+    if (sum(min.int>1) == nrow(workspace[oncall.persons,])){
+      #if no errors then save result
+      oncall.results <- c(oncall.results, list(workspace))
+      #calculate quality of obtained oncall schedule
+      loading <- 2*apply(workspace[oncall.persons,oncall.holidays],1,sum) + apply(workspace[oncall.persons,oncall.workdays],1,sum)
+      oncall.quality <- c(oncall.quality, sd(loading))
+    }#end if
     ##
-    #calculate quality of obtained oncall schedule
-    loading <- 2*apply(workspace[oncall.persons,oncall.holidays],1,sum) + apply(workspace[oncall.persons,oncall.workdays],1,sum)
-    oncall.quality <- c(oncall.quality, sd(loading))
-  }#end while
+  }#end while  
   ##
   oncall.quality <- data.frame(result.index = c(1:length(oncall.results)),
                                quality = oncall.quality)
