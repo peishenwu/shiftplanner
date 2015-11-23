@@ -1,9 +1,7 @@
-## NTUH PMR shift schedule planner
-# by Pei-shen Wu, MD (2015)
+# NTUH PMR shift schedule planner
+### by Pei-shen Wu, MD (2015)
 
-This program was created and tested in R version 3.1.0 (2014-04-10) running under Mac OS Mavericks 10.9.5 Traditional Chinese version
-
-The R code were saved under UTF-8 format, FYI if you want to try the files in MS Windows.
+This program was created and tested in R version 3.1.0 (2014-04-10) running under Mac OS Mavericks 10.9.5 Traditional Chinese version. The R code were saved under UTF-8 format, FYI if you want to try the files in MS Windows.
 
 # To get started...
 1. Modify the setwd path in the main.R file, this file holds the main program
