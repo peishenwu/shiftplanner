@@ -180,8 +180,8 @@ results <- c(r.results,swap.Agg)
                            decreasing = F),]
 
 ##save results
-saveRDS(list(contraspace = contraspace[,-c(1,2)],
-             strucdata = strucdata[,-c(1,2)],
+saveRDS(list(contraspace = contraspace,
+             strucdata = strucdata,
              results = results,
              quality = quality,
              holidays = holidays,

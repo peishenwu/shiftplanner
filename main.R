@@ -13,16 +13,17 @@ if(length(notinstalled)!=0){
   }
 }#end if
 
-##
-source("oncall_planner.R")
-source("output_toWord.R")
-
 ##starting every module: 
 #planner -> swapper
 msg <- try({source("planner.R")},F)[1]
-if(length(msg)!=0){stop("\nNo results were obtained... thus process halted")}
+if(length(msg)!=0){
+  if(grepl("error",tolower(msg))){
+    stop("\nNo results were obtained... thus process halted") 
+  }
+}
 
 #oncall_planner
+source("oncall_planner.R")
 data <- readRDS("swapper_output.rds")
 for(index in 1:length(data$results)){
   msg <- try(OncallPlanner(index),F)[1]
@@ -30,6 +31,7 @@ for(index in 1:length(data$results)){
 }#end for
 
 #output_toWord
+source("output_toWord.R")
 data <- readRDS("oncallplanner_output.rds")
 index <- data$useindex
 WordOutput(index)
