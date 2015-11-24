@@ -172,7 +172,8 @@ results <- c(r.results,swap.Agg)
                        quality$NotFollowHoliday == 0 &
                        quality$NotFollowWorkday == 0 &
                        quality$OnlyTwoDutiesPerDay == 0 &
-                       quality$continQODs == 0,]
+                       quality$continQODs == 0 &
+                       quality$cSenior == 0,]
 
   quality <- quality[order(quality$cQODs,
                            quality$cSenior,

@@ -8,6 +8,7 @@ WordOutput <- function(index=1){
   data <- readRDS("swapper_output.rds")
   result.index <- data$quality$resultIndex[index]
   persondata <- data$persondata
+  holidays <- data$holidays
   result <- data$results[[result.index]]
   worksrc <- data.frame(persondata, senior = rep(NA,nrow(persondata)),
                         result)
@@ -63,6 +64,9 @@ WordOutput <- function(index=1){
   #remove redundant columns
   workspace[26,workspace[26,]>31] <- ""
   workspace[32,workspace[32,]>31] <- ""
+  if(sum(workspace[32,] == "")==0){ workspace[32:37,1:8] <- NA }
+  workspace <- workspace[complete.cases(workspace),]
+  
   #
   doc = docx(title = 'Duty schedule output')
   MyFTable = FlexTable(data = workspace, 
@@ -70,6 +74,63 @@ WordOutput <- function(index=1){
                        header.columns = F)
   
   doc = addFlexTable(doc, MyFTable)
+  
+  ## add statistical data output
+  stattable <- as.data.frame(matrix(data="",ncol=10,nrow=14))
+  stattable[1,1:5]  <- c("一線","假日","平時","點數","累計")
+  stattable[1,6:10] <- c("一線","假日","平時","點數","累計")
+  stattable[8,1:5]  <- c("二線","假日","平時","點數","累計")
+  stattable[8,6:10] <- c("二線","假日","平時","點數","累計")
+  ##
+  stattable[1+c(1:sum(worksrc$senior==1)),1] <- worksrc$name[worksrc$senior==1]
+  stattable[1+c(1:sum(worksrc$senior==1)),2] <- apply(worksrc[worksrc$senior==1,][,-c(1:3)][,holidays],1,sum)
+  stattable[1+c(1:sum(worksrc$senior==1)),3] <- apply(worksrc[worksrc$senior==1,][,-c(1:3)][,-holidays],1,sum)
+  stattable[1+c(1:sum(worksrc$senior==1)),4] <- 2*apply(worksrc[worksrc$senior==1,][,-c(1:3)][,holidays],1,sum) + apply(worksrc[worksrc$senior==1,][,-c(1:3)][,-holidays],1,sum)
+  #
+  stattable[1+c(1:sum(worksrc$senior==2)),6] <- worksrc$name[worksrc$senior==2]
+  stattable[1+c(1:sum(worksrc$senior==2)),7] <- apply(worksrc[worksrc$senior==2,][,-c(1:3)][,holidays],1,sum)
+  stattable[1+c(1:sum(worksrc$senior==2)),8] <- apply(worksrc[worksrc$senior==2,][,-c(1:3)][,-holidays],1,sum)
+  stattable[1+c(1:sum(worksrc$senior==2)),9] <- 2*apply(worksrc[worksrc$senior==2,][,-c(1:3)][,holidays],1,sum) + apply(worksrc[worksrc$senior==2,][,-c(1:3)][,-holidays],1,sum)
+  #
+  stattable[8+c(1:sum(worksrc$senior==3)),1] <- worksrc$name[worksrc$senior==3]
+  stattable[8+c(1:sum(worksrc$senior==3)),2] <- apply(worksrc[worksrc$senior==3,][,-c(1:3)][,holidays],1,sum)
+  stattable[8+c(1:sum(worksrc$senior==3)),3] <- apply(worksrc[worksrc$senior==3,][,-c(1:3)][,-holidays],1,sum)
+  stattable[8+c(1:sum(worksrc$senior==3)),4] <- 2*apply(worksrc[worksrc$senior==3,][,-c(1:3)][,holidays],1,sum) + apply(worksrc[worksrc$senior==3,][,-c(1:3)][,-holidays],1,sum)
+  #
+  stattable[8+c(1:sum(worksrc$senior==4)),6] <- worksrc$name[worksrc$senior==4]
+  stattable[8+c(1:sum(worksrc$senior==4)),7] <- apply(worksrc[worksrc$senior==4,][,-c(1:3)][,holidays],1,sum)
+  stattable[8+c(1:sum(worksrc$senior==4)),8] <- apply(worksrc[worksrc$senior==4,][,-c(1:3)][,-holidays],1,sum)
+  stattable[8+c(1:sum(worksrc$senior==4)),9] <- 2*apply(worksrc[worksrc$senior==4,][,-c(1:3)][,holidays],1,sum) + apply(worksrc[worksrc$senior==4,][,-c(1:3)][,-holidays],1,sum)
+  
+  #oncall
+  oncalltable <- as.data.frame(matrix(data="",ncol=10,nrow=7))
+  oncalltable[1,1:5]  <- c("二線","假日","平時","點數","累計")
+  oncalltable[1,6:10] <- c("二線","假日","平時","點數","累計")
+  oncalltable[1+c(1:sum(worksrc$senior[oncall.persons] == 3)),1] <- worksrc$name[oncall.persons][worksrc$senior[oncall.persons] == 3]
+  oncalltable[1+c(1:sum(worksrc$senior[oncall.persons] == 3)),2] <- apply(oncall.bestresult[worksrc$senior == 3,holidays],1,sum)
+  oncalltable[1+c(1:sum(worksrc$senior[oncall.persons] == 3)),3] <- apply(oncall.bestresult[worksrc$senior == 3,-holidays],1,sum)
+  oncalltable[1+c(1:sum(worksrc$senior[oncall.persons] == 3)),4] <- apply(oncall.bestresult[worksrc$senior == 3,-holidays],1,sum) + 2*apply(oncall.bestresult[worksrc$senior == 3,holidays],1,sum)
+  #
+  oncalltable[1+c(1:sum(worksrc$senior[oncall.persons] == 4)),6] <- worksrc$name[oncall.persons][worksrc$senior[oncall.persons] == 4]
+  oncalltable[1+c(1:sum(worksrc$senior[oncall.persons] == 4)),7] <- apply(oncall.bestresult[worksrc$senior == 4,holidays],1,sum)
+  oncalltable[1+c(1:sum(worksrc$senior[oncall.persons] == 4)),8] <- apply(oncall.bestresult[worksrc$senior == 4,-holidays],1,sum)
+  oncalltable[1+c(1:sum(worksrc$senior[oncall.persons] == 4)),9] <- apply(oncall.bestresult[worksrc$senior == 4,-holidays],1,sum) + 2*apply(oncall.bestresult[worksrc$senior == 4,holidays],1,sum)
+  #
+  MyFTable = FlexTable(data = stattable, 
+                       add.rownames = F,
+                       header.columns = F)
+  
+  ##next page
+  doc = addPageBreak(doc)
+  doc = addFlexTable(doc, MyFTable)
+  
+  ##add line
+  doc = addParagraph( doc, " ", stylename = "Normal" )
+  MyFTable = FlexTable(data = oncalltable, 
+                       add.rownames = F,
+                       header.columns = F)
+  doc = addFlexTable(doc, MyFTable)
+  ##
   writeDoc(doc, 'duty_schedule.docx')
   system('open duty_schedule.docx')
 }#end function
