@@ -6,8 +6,7 @@ This program was created and tested in R version 3.1.0 (2014-04-10) running unde
 # To get started...
 1. Modify the setwd path in the main.R file, this file holds the main program
 2. Put all the other files under the same path defined in the main.R file
-3. The duty personale, monthly workdays/holidays and all constraint information are defined in the planner_config.xlsx file by setting the cells 2,1,0
-The definition for {2,1,0} are the following:
+3. The duty personale, monthly workdays/holidays and all constraint information are defined in the planner_config.xlsx file by setting the cells according to the following definition:
   1. "0" means available for duty
   2. "1" means not available for duty
   3. "2" means appointing that day for duty
