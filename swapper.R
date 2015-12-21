@@ -190,6 +190,7 @@ results <- c(r.results,swap.Agg)
 
 ##save results
 saveRDS(list(contraspace = contraspace,
+             appointspace = appointspace,
              strucdata = strucdata,
              results = results,
              quality = quality,

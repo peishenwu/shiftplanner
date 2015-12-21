@@ -9,7 +9,7 @@ library(xlsx)
 library(compiler)
 #
 ##do Iterations
-iter_max = 300000
+iter_max = 30000
 #
 config.data <- read.xlsx("planner_config.xlsx", 1, row.names = NULL)
 contraspace <- config.data[2:nrow(config.data),-c(1,2,ncol(config.data), (ncol(config.data)-1))]
@@ -73,6 +73,8 @@ if (sum(apply(contraspace, 2, function(x){sum(x == 2)}) > 2) != 0){
 
 appoint_holidays <- apply(appointspace[,holidays],1,sum)
 appoint_workdays <- apply(appointspace[,-holidays],1,sum)
+appoint_struc <- data.frame(workdays = appoint_workdays,
+                            holidays = appoint_holidays)
 strucdata$holidays <- strucdata$holidays - appoint_holidays
 strucdata$workdays <- strucdata$workdays - appoint_workdays
 
@@ -169,7 +171,7 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
         }else{
           holiday.to.fill <- available.holidays 
           if(length(available.holidays)>1){ #only sample when there is more than one choice
-            holiday.to.fill <- sample(available.holidays, strucdata$holidays[irow])
+            holiday.to.fill <- sample(available.holidays, strucdata$holidays[irow] - appoint_struc$holidays[irow])
           }#end if          
         }#end if
       }#end if
@@ -182,7 +184,7 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
         }else{
           workday.to.fill <- available.workdays 
           if(length(available.workdays)>1){ #only sample when there is more than one choice
-            workday.to.fill <- sample(available.workdays, strucdata$workdays[irow])
+            workday.to.fill <- sample(available.workdays, strucdata$workdays[irow] - appoint_struc$workdays[irow])
           }#end if
         }#end if
       }#end if
@@ -297,6 +299,7 @@ if (length(results)!=0){
   ##save results
   saveRDS(list(contraspace = contraspace,
                strucdata = strucdata,
+               appoint_struc = appoint_struc,
                results = results,
                quality = quality,
                iter_log = iter_log,
