@@ -9,7 +9,7 @@ library(xlsx)
 library(compiler)
 #
 ##do Iterations
-iter_max = 200000
+iter_max = 300000
 #
 config.data <- read.xlsx("planner_config.xlsx", 1, row.names = NULL)
 contraspace <- config.data[2:nrow(config.data),-c(1,2,ncol(config.data), (ncol(config.data)-1))]
@@ -132,6 +132,7 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
                 (remaining.time%%3600%/%60)," min ",
                 (remaining.time%%3600%%60)," sec ",
                 "\nObtained: ",length(results),
+                "\nAverage yield: 1 solution per ",count_iter %/% length(results)," trials",
                 "\n",paste("|",paste(rep("=",round(progress.status*0.6)),collapse=""),
                            paste(rep(" ",round((100-progress.status)*0.6)),collapse=""),"| ",
                            progress.status,"%",sep=""),
