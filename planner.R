@@ -1,3 +1,6 @@
+##by Pei-shen Wu, MD (2015)
+##version 2015-12-21
+
 options(stringsAsFactors = FALSE, 
         scipen=999) ##disable scientific number notation
 set.seed(1234)
@@ -6,7 +9,7 @@ library(xlsx)
 library(compiler)
 #
 ##do Iterations
-iter_max = 200000
+iter_max = 300000
 #
 config.data <- read.xlsx("planner_config.xlsx", 1, row.names = NULL)
 contraspace <- config.data[2:nrow(config.data),-c(1,2,ncol(config.data), (ncol(config.data)-1))]
@@ -17,7 +20,6 @@ Encoding(persondata$name) <- "UTF-8"
 strucdata <- config.data[2:nrow(config.data),c(ncol(config.data), (ncol(config.data)-1))]
 holidays <- config.data[1,-c(1,2,ncol(config.data), (ncol(config.data)-1))]
 holidays <- as.numeric(gsub("X","",names(holidays[,holidays == 1])))
-
 
 contraspace_days <- as.numeric(gsub("X","",names(contraspace)))
 junior_rowindex <- c(1:length(persondata$level))[persondata$level %in% c("R1","R2")]
@@ -31,7 +33,7 @@ sort.config.data <- data.frame(persondata, strucdata,
 
 for(irow in 1:nrow(contraspace)){
   availabledays <- contraspace[irow,]
-  availabledays <- contraspace_days[availabledays != 1]
+  availabledays <- contraspace_days[availabledays == 0]
   available.holidays <- availabledays[(availabledays %in% holidays)]
   available.workdays <- availabledays[!(availabledays %in% holidays)]
   #
@@ -44,6 +46,9 @@ sort.config.data <- sort.config.data[order(sort.config.data$flexible_holidays,
                                            decreasing = F),]
 
 contraspace <- sort.config.data[,-c(1:6)]
+appointspace <- 1*(contraspace == 2)
+contraspace <- contraspace - 2*appointspace
+##
 strucdata <- sort.config.data[, c(3,4)]
 persondata <- sort.config.data[, c(1,2)]
 
@@ -57,6 +62,19 @@ count_workdays <- length(contraspace_days) - count_holidays
 if (sum(strucdata$workdays) != 2*count_workdays | sum(strucdata$holidays) != 2*count_holidays){
   stop("Error in holidays or workdays configuration")
 }#end if
+
+## if more than two persons appoint the same day for on-duty, then it's an error
+if (sum(apply(contraspace, 2, function(x){sum(x == 2)}) > 2) != 0){
+  stop("Error !! more than two persons appoint the same day for on-duty")
+}#end if
+
+## update strucdata according to appointing specific days for on-duty
+## this is done AFTER the configuration checks... but BEFORE algorithm begins
+
+appoint_holidays <- apply(appointspace[,holidays],1,sum)
+appoint_workdays <- apply(appointspace[,-holidays],1,sum)
+strucdata$holidays <- strucdata$holidays - appoint_holidays
+strucdata$workdays <- strucdata$workdays - appoint_workdays
 
 ##worker functions
 getintervals <- function(x){
@@ -82,7 +100,7 @@ repeatdetect <- function(x, target){
 #progress <- function(n){ setTxtProgressBar(pb, n) }
 
 ##
-Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holidays){
+Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holidays, appointspace){
   count_iter = 0
   results <- list()
   iter_log <- rep(0,iter_max %/% 250)
@@ -127,8 +145,12 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
     if(count_iter > iter_max){break} #exit iteration if completed
     
     #renew workspace and contraspace.updated
-    workspace <- matrix(data=0, nrow = nrow(contraspace), ncol = ncol(contraspace))
-    contraspace.updated <- contraspace
+    #workspace <- matrix(data=0, nrow = nrow(contraspace), ncol = ncol(contraspace))
+    workspace <- appointspace ##initialize with appointment space
+    contraspace.updated <- (contraspace | appointspace)*1
+    
+    ##update contraspace if 2 duties exist per day (do this first, because it can be filled by appointment)
+    contraspace.updated[,(apply(workspace,2,sum) == 2)] <- 1 
     
     ##Planner algorithm
     skip = F
@@ -149,7 +171,7 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
           if(length(available.holidays)>1){ #only sample when there is more than one choice
             holiday.to.fill <- sample(available.holidays, strucdata$holidays[irow])
           }#end if          
-        }
+        }#end if
       }#end if
       
       if (strucdata$workdays[irow]!=0){
@@ -215,7 +237,7 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
 
 ##
 cAlgorithm <- cmpfun(Algorithm) ##use compiler for faster performance
-output <- cAlgorithm(contraspace_days, contraspace, iter_max, strucdata, holidays)
+output <- cAlgorithm(contraspace_days, contraspace, iter_max, strucdata, holidays, appointspace)
 results <- output[[1]]
 iter_log <- output[[2]]
 
@@ -280,6 +302,7 @@ if (length(results)!=0){
                iter_log = iter_log,
                iter_max = iter_max,
                holidays = holidays,
+               appointspace = appointspace,
                contraspace_days=contraspace_days),
           "planner_output.rds")
   

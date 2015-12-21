@@ -1,3 +1,6 @@
+##by Pei-shen Wu, MD (2015)
+##version 2015-12-21
+
 options(stringsAsFactors = FALSE, 
         scipen=999)
 library(utils)
@@ -13,6 +16,7 @@ holidays <- data$holidays
 contraspace_days <- data$contraspace_days
 persondata <- data$contraspace[, c(1,2)]
 strucdata <- data$strucdata
+appointspace <- data$appointspace
 
 junior_rowindex <- c(1:length(persondata$level))[persondata$level %in% c("R1","R2")]
 senior_rowindex <- c(1:length(persondata$level))[persondata$level %in% c("R3","R4")]
@@ -140,7 +144,8 @@ results <- c(r.results,swap.Agg)
                         NoContras = rep(NA, length(results)),
                         NotFollowHoliday = rep(NA, length(results)),
                         NotFollowWorkday = rep(NA, length(results)),
-                        OnlyTwoDutiesPerDay = rep(NA, length(results)))
+                        OnlyTwoDutiesPerDay = rep(NA, length(results)),
+                        FollowAllAppointments = rep(NA, length(results)))
   
   pb <- txtProgressBar(min = 1, max = length(results), style=3)
   message("\nCalculating quality...")
@@ -164,6 +169,8 @@ results <- c(r.results,swap.Agg)
     quality$NotFollowHoliday[item] <- sum(apply(results[[item]][,c(holidays)],1,sum) != strucdata$holidays)
     quality$NotFollowWorkday[item] <- sum(apply(results[[item]][,-c(holidays)],1,sum) != strucdata$workdays)
     quality$OnlyTwoDutiesPerDay[item] <- sum(apply(results[[item]],2,sum) != 2)
+    
+    quality$FollowAllAppointments[item] <- sum((results[[item]] & appointspace) != appointspace) == 0
   }#end for
   
   #remove those which don't obey strucdata or only two duties per day or has contras
@@ -173,7 +180,8 @@ results <- c(r.results,swap.Agg)
                        quality$NotFollowWorkday == 0 &
                        quality$OnlyTwoDutiesPerDay == 0 &
                        quality$continQODs == 0 &
-                       quality$cSenior == 0,]
+                       quality$cSenior == 0 &
+                       quality$FollowAllAppointments == T,]
 
   quality <- quality[order(quality$cQODs,
                            quality$cSenior,
