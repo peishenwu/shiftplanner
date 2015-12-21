@@ -188,6 +188,11 @@ results <- c(r.results,swap.Agg)
                            -quality$discrete,
                            decreasing = F),]
 
+##if no results, then halt
+if (nrow(quality) == 0){
+  stop("No results were obtained...")
+}
+
 ##save results
 saveRDS(list(contraspace = contraspace,
              appointspace = appointspace,
