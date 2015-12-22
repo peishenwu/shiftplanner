@@ -52,6 +52,12 @@ contraspace <- contraspace - 2*appointspace
 strucdata <- sort.config.data[, c(3,4)]
 persondata <- sort.config.data[, c(1,2)]
 
+##
+appoint_holidays <- apply(appointspace[,holidays],1,sum)
+appoint_workdays <- apply(appointspace[,-holidays],1,sum)
+appoint_struc <- data.frame(workdays = appoint_workdays,
+                            holidays = appoint_holidays)
+
 ## check for configuration error
 if ((sum(sort.config.data$flexible_holidays < 0) + sum(sort.config.data$flexible_workdays < 0)) != 0){
   stop("Error !! Someone set too much contras, leading to not enough available workdays or holidays")
@@ -68,11 +74,15 @@ if (sum(apply(contraspace, 2, function(x){sum(x == 2)}) > 2) != 0){
   stop("Error !! more than two persons appoint the same day for on-duty")
 }#end if
 
-##
-appoint_holidays <- apply(appointspace[,holidays],1,sum)
-appoint_workdays <- apply(appointspace[,-holidays],1,sum)
-appoint_struc <- data.frame(workdays = appoint_workdays,
-                            holidays = appoint_holidays)
+##if appoint structure disobeys strucdata then it's an error
+if ((sum(appoint_struc$holidays > strucdata$holidays)!=0) | (sum(appoint_struc$workdays > strucdata$workdays)!=0)){
+  message(paste("\nThere are more appointed holidays than previously determined in: ",
+                paste(persondata$name[appoint_struc$holidays > strucdata$holidays], collapse = ","), sep=""))
+  message(paste("\nThere are more appointed workdays than previously determined in: ",
+                paste(persondata$name[appoint_struc$workdays > strucdata$workdays], collapse = ","), sep=""))
+  stop("Process halted")
+}#end if
+
 
 ##worker functions
 getintervals <- function(x){
@@ -115,6 +125,7 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
   
   ##
   init_time = Sys.time() #set time at beginning
+  avg_trials = c() ## for recording of HOW MUCH TRIALS ON AVERAGE FOR A SINGLE SOLUTION
   ##
   while(T){ #do many iterations
     count_iter = count_iter + 1
@@ -124,7 +135,13 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
       progress.status <- round(count_iter*100/iter_max)
       #cat("\014") #ctrl+L to clear screen in Rstudio console
       if(.Platform$OS.type == "unix"){system('clear')} #to clear screen in mac OSX console
-      if(.Platform$OS.type == "windows"){system('cls')} #to clear screen in windows DOS console
+      if(.Platform$OS.type == "windows"){
+        #system('cls')
+        cat(rep("\n",64))
+        } #to clear screen in windows DOS console
+      
+      avg_trials <- c(avg_trials, (count_iter %/% length(results)))
+      avg_trials <- avg_trials[avg_trials != Inf]
       
       cat(paste("\nIteration: ",count_iter," of total ",iter_max,
                 "\nRemaining time: ", 
@@ -132,7 +149,7 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
                 (remaining.time%%3600%/%60)," min ",
                 (remaining.time%%3600%%60)," sec ",
                 "\nObtained: ",length(results),
-                "\nAverage yield: 1 solution per ",count_iter %/% length(results)," trials",
+                "\nAverage yield: 1 solution per ",round(mean(avg_trials))," trials",
                 "\n",paste("|",paste(rep("=",round(progress.status*0.6)),collapse=""),
                            paste(rep(" ",round((100-progress.status)*0.6)),collapse=""),"| ",
                            progress.status,"%",sep=""),
@@ -241,7 +258,8 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
   }#end of iteration
   ##
   list(results = results, 
-       iter_log = iter_log)
+       iter_log = iter_log,
+       avg_trials = avg_trials)
 }#end of Algorithm
 
 ##
@@ -249,7 +267,7 @@ cAlgorithm <- cmpfun(Algorithm) ##use compiler for faster performance
 output <- cAlgorithm(contraspace_days, contraspace, iter_max, strucdata, holidays, appointspace)
 results <- output[[1]]
 iter_log <- output[[2]]
-
+avg_trials <- output[[3]]
 ##calculate quality metrics
 ## 1. counts of QODs
 ## 2. discreteness of shifts
@@ -312,6 +330,7 @@ if (length(results)!=0){
                iter_log = iter_log,
                iter_max = iter_max,
                holidays = holidays,
+               avg_trials = avg_trials,
                appointspace = appointspace,
                contraspace_days=contraspace_days),
           "planner_output.rds")
