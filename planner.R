@@ -165,8 +165,8 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
     
     ###
     # if can't reach a single solution by 30000 iterations, begin suffle ....
-    #if ((length(results) == 0) & count_iter > 30000){
-    if(T){
+    if ((length(results) == 0) & count_iter > 30000){
+    #if(T){
       begin_suffle <- T
       iter_max <- 9999999 ##needs more iterations
       ##          
