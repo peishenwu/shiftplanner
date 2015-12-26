@@ -1,5 +1,5 @@
 ##by Pei-shen Wu, MD (2015)
-##version 2015-12-21
+##version 2015-12-27
 
 options(stringsAsFactors = FALSE, 
         scipen=999) ##disable scientific number notation
@@ -37,23 +37,22 @@ for(irow in 1:nrow(contraspace)){
   available.holidays <- availabledays[(availabledays %in% holidays)]
   available.workdays <- availabledays[!(availabledays %in% holidays)]
   #
-  #sort.config.data$flexible_holidays[irow] <- length(available.holidays) - strucdata$holidays[irow]
-  #sort.config.data$flexible_workdays[irow] <- length(available.workdays) - strucdata$workdays[irow]
-  sort.config.data$flexible_holidays[irow] <- length(available.holidays) %/% strucdata$holidays[irow]
-  sort.config.data$flexible_workdays[irow] <- length(available.workdays) %/% strucdata$workdays[irow]
+  sort.config.data$flexible_holidays[irow] <- length(available.holidays) - (strucdata$holidays[indexrow] - appoint_holidays[indexrow])
+  sort.config.data$flexible_workdays[irow] <- length(available.workdays) - (strucdata$workdays[indexrow] - appoint_workdays[indexrow])
+#  sort.config.data$flexible_holidays[irow] <- length(available.holidays) %/% strucdata$holidays[irow]
+#  sort.config.data$flexible_workdays[irow] <- length(available.workdays) %/% strucdata$workdays[irow]
 }#end for
 
-sort.config.data <- sort.config.data[order(sort.config.data$flexible_holidays,
-                                           sort.config.data$flexible_workdays,
-                                           decreasing = F),]
+#sort.config.data <- sort.config.data[order(sort.config.data$flexible_holidays,
+#                                           sort.config.data$flexible_workdays,
+#                                           decreasing = F),]
 
+strucdata <- sort.config.data[, c(3,4)]
+persondata <- sort.config.data[, c(1,2)]
+##
 contraspace <- sort.config.data[,-c(1:6)]
 appointspace <- 1*(contraspace == 2)
 contraspace <- contraspace - 2*appointspace
-##
-strucdata <- sort.config.data[, c(3,4)]
-persondata <- sort.config.data[, c(1,2)]
-
 ##
 appoint_holidays <- apply(appointspace[,holidays],1,sum)
 appoint_workdays <- apply(appointspace[,-holidays],1,sum)
@@ -110,9 +109,8 @@ repeatdetect <- function(x, target){
 #progress <- function(n){ setTxtProgressBar(pb, n) }
 
 ##
-Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holidays, appointspace, sort.config.data){
+Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holidays, appointspace){
   count_iter = 0
-  begin_suffle = F
   results <- list()
   iter_log <- rep(0,iter_max %/% 250)
   
@@ -151,7 +149,7 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
                 (remaining.time%/%3600)," hrs ",
                 (remaining.time%%3600%/%60)," min ",
                 (remaining.time%%3600%%60)," sec ",
-                "\nObtained: ",length(results)," ",if(begin_suffle){"((With Shuffle Now))"},
+                "\nObtained: ",length(results),
                 "\nAverage yield: 1 solution per ",round(mean(avg_trials))," trials",
                 "\n",paste("|",paste(rep("=",round(progress.status*0.6)),collapse=""),
                            paste(rep(" ",round((100-progress.status)*0.6)),collapse=""),"| ",
@@ -164,28 +162,6 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
     if(count_iter > iter_max){break} #exit iteration if completed
     
     ###
-    # if can't reach a single solution by 30000 iterations, begin suffle ....
-    if ((length(results) == 0) & count_iter > 30000){
-    #if(T){
-      begin_suffle <- T
-      iter_max <- 9999999 ##needs more iterations
-      ##          
-      sort.config.data <- sort.config.data[sample(1:nrow(sort.config.data)),]
-      
-      contraspace <- sort.config.data[,-c(1:6)]
-      appointspace <- 1*(contraspace == 2)
-      contraspace <- contraspace - 2*appointspace
-      ##
-      strucdata <- sort.config.data[, c(3,4)]
-      persondata <- sort.config.data[, c(1,2)]
-      
-      ##
-      appoint_holidays <- apply(appointspace[,holidays],1,sum)
-      appoint_workdays <- apply(appointspace[,-holidays],1,sum)
-      appoint_struc <- data.frame(workdays = appoint_workdays,
-                                  holidays = appoint_holidays)
-    }#end if    
-    ###
     
     #renew workspace and contraspace.updated
     #workspace <- matrix(data=0, nrow = nrow(contraspace), ncol = ncol(contraspace))
@@ -197,56 +173,105 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
     
     ##Planner algorithm
     skip = F
-    for(irow in 1:nrow(workspace)){
-      availabledays <- contraspace.updated[irow,]
+    ##record which personale was done.... 
+    p.index.done <- c()
+    ##
+    for(irow in 1:nrow(workspace)){  ##do every personale
+      
+      ##re-calculate complexity when done with every previous personale to determine who's next...
+      ##sort by complexity
+      resort.config.data <- data.frame(persondata, strucdata,
+                                       flexible_holidays = rep(Inf,nrow(contraspace)),
+                                       flexible_workdays = rep(Inf,nrow(contraspace)), 
+                                       complexity = rep(Inf,nrow(contraspace)))    
+      
+      for(indexrow in 1:nrow(resort.config.data)){
+        availabledays <- contraspace.updated[indexrow,]
+        availabledays <- contraspace_days[availabledays == 0]
+        available.holidays <- availabledays[(availabledays %in% holidays)]
+        available.workdays <- availabledays[!(availabledays %in% holidays)]
+        #
+        resort.config.data$flexible_holidays[indexrow] <- length(available.holidays) - (strucdata$holidays[indexrow] - appoint_holidays[indexrow])
+        resort.config.data$flexible_workdays[indexrow] <- length(available.workdays) - (strucdata$workdays[indexrow] - appoint_workdays[indexrow])
+        resort.config.data$complexity[indexrow] <- min(c(resort.config.data$flexible_holidays[indexrow],
+                                                         resort.config.data$flexible_workdays[indexrow]))
+      }#end for
+      
+      if(length(p.index.done)!=0){
+        resort.config.data <- resort.config.data[-p.index.done,] ##select only the remaining personale
+      }#end if  
+      
+      ##skip if there is complexity < 0
+      if(sum(resort.config.data$complexity < 0) != 0){
+        skip <- T
+        break #exit for loop
+      }#end if            
+      ##
+      
+      resort.config.data <- resort.config.data[order(resort.config.data$complexity, decreasing = F),]      
+      ## identify the index of which personale to do next
+      if (irow != 1){
+        min_complexity <- resort.config.data$complexity[1]
+        min_names <- resort.config.data$name[resort.config.data$complexity %in% min_complexity]
+        next.p.index <- c(1:nrow(persondata))[persondata$name %in%  min_names]
+        if(length(next.p.index)>1){ next.p.index <- sample(next.p.index, 1) }
+      }else{
+        next.p.index <- sample(1:nrow(workspace), 1) ##start with a random personale        
+      }#end if
+      p.index.done <- c(p.index.done, next.p.index)
+      
+      #### plan personale according to next.p.index
+      
+      availabledays <- contraspace.updated[next.p.index,]
       availabledays <- contraspace_days[availabledays != 1]      
       
       ##identify which workday/holiday had been appointed prior
-      holiday.appointed <- contraspace_days[appointspace[irow,]==1][holidays]
-      holiday.appointed <- holiday.appointed[complete.cases(holiday.appointed)]
-      workday.appointed <- contraspace_days[appointspace[irow,]==1][-holidays]
-      workday.appointed <- workday.appointed[complete.cases(workday.appointed)]
+      holiday.appointed <- holidays[holidays %in% contraspace_days[appointspace[next.p.index,]==1]]
+      workdays <- contraspace_days[-holidays]
+      workday.appointed <- workdays[workdays %in% contraspace_days[appointspace[next.p.index,]==1]]
       
       ##reset
       holiday.to.fill <- NULL
       workday.to.fill <- NULL
       
       ##
-      if (strucdata$holidays[irow]!=0){
+      if (strucdata$holidays[next.p.index]!=0){
         available.holidays <- availabledays[(availabledays %in% holidays)]
-        if((length(available.holidays) == 0) | (length(available.holidays) < strucdata$holidays[irow])){
+        if(((length(available.holidays)+length(holiday.appointed)) < strucdata$holidays[next.p.index]) | 
+             (length(available.holidays)+length(holiday.appointed)) == 0){
           skip <- T
           break #exit for loop
         }else{
           holiday.to.fill <- c(holiday.appointed, available.holidays)
           if(length(available.holidays)>1){ #only sample when there is more than one choice
             holiday.to.fill <- c(holiday.appointed, 
-                                 sample(available.holidays, strucdata$holidays[irow] - appoint_struc$holidays[irow]))
+                                 sample(available.holidays, strucdata$holidays[next.p.index] - appoint_struc$holidays[next.p.index]))
           }#end if          
         }#end if
       }#end if
       
-      if (strucdata$workdays[irow]!=0){
+      if (strucdata$workdays[next.p.index]!=0){
         available.workdays <- availabledays[!(availabledays %in% holidays)]
-        if((length(available.workdays) == 0) | (length(available.workdays) < strucdata$workdays[irow])){
+        if(((length(available.workdays)+length(workday.appointed)) < strucdata$workdays[next.p.index]) |
+             (length(available.workdays)+length(workday.appointed)) == 0){
           skip <- T
           break #exit for loop
         }else{
           workday.to.fill <- c(workday.appointed, available.workdays)
           if(length(available.workdays)>1){ #only sample when there is more than one choice
             workday.to.fill <- c(workday.appointed,
-                                 sample(available.workdays, strucdata$workdays[irow] - appoint_struc$workdays[irow]))
+                                 sample(available.workdays, strucdata$workdays[next.p.index] - appoint_struc$workdays[next.p.index]))
           }#end if
         }#end if
       }#end if
       ##
       
       if (length(holiday.to.fill)!=0){
-        workspace[irow, c(holiday.to.fill)] <- 1
+        workspace[next.p.index, c(holiday.to.fill)] <- 1
       }#end if
         
       if (length(workday.to.fill)!=0){
-        workspace[irow, c(workday.to.fill)] <- 1
+        workspace[next.p.index, c(workday.to.fill)] <- 1
       }#end if
       
       ##update contraspace if 2 duties exist per day
@@ -265,7 +290,7 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
       ##check for errors and contraindications
       error = F
       
-      ## every shift interval is at least >= 1 to prevent QD, can manually adjust)
+      ## every shift interval is at least > 1 to prevent QD, can manually adjust)
       min.int <- sapply(1:nrow(workspace), 
                         function(x){
                           mininterval(c(1:ncol(workspace))[c(workspace[x,]==1)])
@@ -291,7 +316,7 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
 
 ##
 cAlgorithm <- cmpfun(Algorithm) ##use compiler for faster performance
-output <- cAlgorithm(contraspace_days, contraspace, iter_max, strucdata, holidays, appointspace, sort.config.data)
+output <- cAlgorithm(contraspace_days, contraspace, iter_max, strucdata, holidays, appointspace)
 results <- output[[1]]
 iter_log <- output[[2]]
 avg_trials <- output[[3]]
