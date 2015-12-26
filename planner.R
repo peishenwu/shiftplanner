@@ -25,6 +25,15 @@ contraspace_days <- as.numeric(gsub("X","",names(contraspace)))
 junior_rowindex <- c(1:length(persondata$level))[persondata$level %in% c("R1","R2")]
 senior_rowindex <- c(1:length(persondata$level))[persondata$level %in% c("R3","R4")]
 
+##
+appointspace <- 1*(contraspace == 2)
+contraspace <- contraspace - 2*appointspace
+##
+appoint_holidays <- apply(appointspace[,holidays],1,sum)
+appoint_workdays <- apply(appointspace[,-holidays],1,sum)
+appoint_struc <- data.frame(workdays = appoint_workdays,
+                            holidays = appoint_holidays)
+
 ##sort by complexity
 sort.config.data <- data.frame(persondata, strucdata,
                                flexible_holidays = rep(Inf,nrow(contraspace)),
@@ -37,8 +46,8 @@ for(irow in 1:nrow(contraspace)){
   available.holidays <- availabledays[(availabledays %in% holidays)]
   available.workdays <- availabledays[!(availabledays %in% holidays)]
   #
-  sort.config.data$flexible_holidays[irow] <- length(available.holidays) - (strucdata$holidays[indexrow] - appoint_holidays[indexrow])
-  sort.config.data$flexible_workdays[irow] <- length(available.workdays) - (strucdata$workdays[indexrow] - appoint_workdays[indexrow])
+  sort.config.data$flexible_holidays[irow] <- length(available.holidays) - (strucdata$holidays[irow] - appoint_holidays[irow])
+  sort.config.data$flexible_workdays[irow] <- length(available.workdays) - (strucdata$workdays[irow] - appoint_workdays[irow])
 #  sort.config.data$flexible_holidays[irow] <- length(available.holidays) %/% strucdata$holidays[irow]
 #  sort.config.data$flexible_workdays[irow] <- length(available.workdays) %/% strucdata$workdays[irow]
 }#end for
@@ -47,17 +56,17 @@ for(irow in 1:nrow(contraspace)){
 #                                           sort.config.data$flexible_workdays,
 #                                           decreasing = F),]
 
-strucdata <- sort.config.data[, c(3,4)]
-persondata <- sort.config.data[, c(1,2)]
+#strucdata <- sort.config.data[, c(3,4)]
+#persondata <- sort.config.data[, c(1,2)]
 ##
-contraspace <- sort.config.data[,-c(1:6)]
-appointspace <- 1*(contraspace == 2)
-contraspace <- contraspace - 2*appointspace
+#contraspace <- sort.config.data[,-c(1:6)]
+#appointspace <- 1*(contraspace == 2)
+#contraspace <- contraspace - 2*appointspace
 ##
-appoint_holidays <- apply(appointspace[,holidays],1,sum)
-appoint_workdays <- apply(appointspace[,-holidays],1,sum)
-appoint_struc <- data.frame(workdays = appoint_workdays,
-                            holidays = appoint_holidays)
+#appoint_holidays <- apply(appointspace[,holidays],1,sum)
+#appoint_workdays <- apply(appointspace[,-holidays],1,sum)
+#appoint_struc <- data.frame(workdays = appoint_workdays,
+#                            holidays = appoint_holidays)
 
 ## check for configuration error
 if ((sum(sort.config.data$flexible_holidays < 0) + sum(sort.config.data$flexible_workdays < 0)) != 0){
