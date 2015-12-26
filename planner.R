@@ -37,8 +37,10 @@ for(irow in 1:nrow(contraspace)){
   available.holidays <- availabledays[(availabledays %in% holidays)]
   available.workdays <- availabledays[!(availabledays %in% holidays)]
   #
-  sort.config.data$flexible_holidays[irow] <- length(available.holidays) - strucdata$holidays[irow]
-  sort.config.data$flexible_workdays[irow] <- length(available.workdays) - strucdata$workdays[irow]
+  #sort.config.data$flexible_holidays[irow] <- length(available.holidays) - strucdata$holidays[irow]
+  #sort.config.data$flexible_workdays[irow] <- length(available.workdays) - strucdata$workdays[irow]
+  sort.config.data$flexible_holidays[irow] <- length(available.holidays) %/% strucdata$holidays[irow]
+  sort.config.data$flexible_workdays[irow] <- length(available.workdays) %/% strucdata$workdays[irow]
 }#end for
 
 sort.config.data <- sort.config.data[order(sort.config.data$flexible_holidays,
@@ -108,8 +110,9 @@ repeatdetect <- function(x, target){
 #progress <- function(n){ setTxtProgressBar(pb, n) }
 
 ##
-Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holidays, appointspace){
+Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holidays, appointspace, sort.config.data){
   count_iter = 0
+  begin_suffle = F
   results <- list()
   iter_log <- rep(0,iter_max %/% 250)
   
@@ -148,7 +151,7 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
                 (remaining.time%/%3600)," hrs ",
                 (remaining.time%%3600%/%60)," min ",
                 (remaining.time%%3600%%60)," sec ",
-                "\nObtained: ",length(results),
+                "\nObtained: ",length(results)," ",if(begin_suffle){"((With Shuffle Now))"},
                 "\nAverage yield: 1 solution per ",round(mean(avg_trials))," trials",
                 "\n",paste("|",paste(rep("=",round(progress.status*0.6)),collapse=""),
                            paste(rep(" ",round((100-progress.status)*0.6)),collapse=""),"| ",
@@ -159,6 +162,30 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
     }
     ##
     if(count_iter > iter_max){break} #exit iteration if completed
+    
+    ###
+    # if can't reach a single solution by 30000 iterations, begin suffle ....
+    #if ((length(results) == 0) & count_iter > 30000){
+    if(T){
+      begin_suffle <- T
+      iter_max <- 9999999 ##needs more iterations
+      ##          
+      sort.config.data <- sort.config.data[sample(1:nrow(sort.config.data)),]
+      
+      contraspace <- sort.config.data[,-c(1:6)]
+      appointspace <- 1*(contraspace == 2)
+      contraspace <- contraspace - 2*appointspace
+      ##
+      strucdata <- sort.config.data[, c(3,4)]
+      persondata <- sort.config.data[, c(1,2)]
+      
+      ##
+      appoint_holidays <- apply(appointspace[,holidays],1,sum)
+      appoint_workdays <- apply(appointspace[,-holidays],1,sum)
+      appoint_struc <- data.frame(workdays = appoint_workdays,
+                                  holidays = appoint_holidays)
+    }#end if    
+    ###
     
     #renew workspace and contraspace.updated
     #workspace <- matrix(data=0, nrow = nrow(contraspace), ncol = ncol(contraspace))
@@ -264,7 +291,7 @@ Algorithm <- function(contraspace_days, contraspace, iter_max, strucdata, holida
 
 ##
 cAlgorithm <- cmpfun(Algorithm) ##use compiler for faster performance
-output <- cAlgorithm(contraspace_days, contraspace, iter_max, strucdata, holidays, appointspace)
+output <- cAlgorithm(contraspace_days, contraspace, iter_max, strucdata, holidays, appointspace, sort.config.data)
 results <- output[[1]]
 iter_log <- output[[2]]
 avg_trials <- output[[3]]
